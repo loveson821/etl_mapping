@@ -22,7 +22,7 @@ class DB:
     def read_table(self, table, columns, last_id=None):
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
+                f"SELECT {','.join(columns)} FROM {table} WHERE deleted_at is null and id > %s order by id asc", [last_id])
             return cur.fetchall()
 
     def store_results(self, table, columns, results):

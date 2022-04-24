@@ -1,6 +1,6 @@
+from itertools import accumulate
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Date
-from sqlalchemy.orm import MANYTOMANY, MANYTOONE, ONETOMANY
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Date, DECIMAL
 from functools import wraps
 from typing import Union
 Base = declarative_base()
@@ -30,7 +30,7 @@ def auto_init(exclude: Union[set, list] = None):  # sourcery no-metrics
             """
             cls = self.__class__
             model_columns = self.__mapper__.columns
-            relationships = self.__mapper__.relationships
+            # relationships = self.__mapper__.relationships
 
             for key, val in kwargs.items():
                 if key in exclude:
@@ -43,44 +43,6 @@ def auto_init(exclude: Union[set, list] = None):  # sourcery no-metrics
                 if key in model_columns:
                     setattr(self, key, val)
                     continue
-
-                if key in relationships:
-                    relation_dir = relationships[key].direction.name
-                    relation_cls = relationships[key].mapper.entity
-                    use_list = relationships[key].uselist
-
-                    if relation_dir == ONETOMANY.name and use_list:
-                        instances = handle_one_to_many_list(relation_cls, val)
-                        setattr(self, key, instances)
-
-                    if relation_dir == ONETOMANY.name and not use_list:
-                        instance = relation_cls(**val)
-                        setattr(self, key, instance)
-
-                    elif relation_dir == MANYTOONE.name and not use_list:
-                        if isinstance(val, dict):
-                            val = val.get("id")
-
-                            if val is None:
-                                raise ValueError(
-                                    f"Expected 'id' to be provided for {key}"
-                                )
-
-                        if isinstance(val, (str, int)):
-                            instance = relation_cls.get_ref(match_value=val)
-                            setattr(self, key, instance)
-
-                    elif relation_dir == MANYTOMANY.name:
-                        if not isinstance(val, list):
-                            raise ValueError(
-                                f"Expected many to many input to be of type list for {key}"
-                            )
-
-                        if isinstance(val[0], dict):
-                            val = [elem.get("id") for elem in val]
-                        intstances = [relation_cls.get_ref(
-                            elem) for elem in val]
-                        setattr(self, key, intstances)
 
             return init(self, *args, **kwargs)
 
@@ -111,6 +73,8 @@ class User(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
 
+    ### relationship ####
+
     @auto_init(exclude={})
     def __init__(self, **_):
         pass
@@ -120,6 +84,129 @@ class Paper(Base):
     __tablename__ = 'papers'
 
     id = Column(Integer, primary_key=True)
+    description = Column(String)
+
+    created_at = Column(Date)
+    updated_at = Column(Date)
+    deleted_at = Column(Date)
+
+
+class Question(Base):
+    __tablename__ = 'questions'
+
+    id = Column(Integer, primary_key=True)
+    score = Column(Integer)
+
+    kind = Column(Integer)
+    paper_pageable_type = Column(Integer)
+
+    paper_id = Column(Integer, ForeignKey('papers.id'))
+
+    created_at = Column(Date)
+    updated_at = Column(Date)
+    deleted_at = Column(Date)
+
+
+class Tag(Base):
+    __tablename__ = 'tags'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    tagging_count = Column(Integer)
+
+
+class Tagging(Base):
+    __tablename__ = 'taggings'
+
+    id = Column(Integer, primary_key=True)
+    tag_id = Column(Integer)
+    taggable_type = Column(String)
+    taggable_id = Column(Integer)
+
+    created_at = Column(Date)
+
+
+class Answer(Base):
+    __tablename__ = 'answers'
+
+    writing = Column(String)
+
+    created_at = Column(Date)
+    updated_at = Column(Date)
+    deleted_at = Column(Date)
+
+
+class UsersQuestion(Base):
+    __tablename__ = 'users_questions'
+
+    id = Column(Integer, primary_key=True)
+    score = Column(Integer)
+
+    kind = Column(Integer)
+    paper_pageable_type = Column(Integer)
+
+    user_id = Column(Integer, ForeignKey('users.id'))
+    question_id = Column(Integer, ForeignKey('questions.id'))
+    users_paper_id = Column(Integer, ForeignKey('users_papers.id'))
+    answer_id = Column(Integer, ForeignKey('answers.id'))
+    correction_id = Column(Integer, ForeignKey('answers.id'))
+
+    created_at = Column(Date)
+    updated_at = Column(Date)
+    deleted_at = Column(Date)
+
+
+class UsersPaper(Base):
+    __tablename__ = 'users_papers'
+
+    id = Column(Integer, primary_key=True)
+
+    score = Column(DECIMAL)
+    accumulate_score = Column(DECIMAL)
+    level = Column(String)
+
+    status = Column(Integer)
+
+    meta = Column(JSON)
+    submited_at = Column(Date)
+    corrected_at = Column(Date)
+
+    answered_count = Column(Integer)
+
+    teacher_id = Column(Integer)
+    audit_teacher_id = Column(Integer)
+
+    # relationship #
+    user_id = Column(Integer, ForeignKey('users.id'))
+    paper_id = Column(Integer, ForeignKey('papers.id'))
+
+    browser = Column(String)
+    created_at = Column(Date)
+    updated_at = Column(Date)
+    deleted_at = Column(Date)
+
+
+class School(Base):
+    __tablename__ = 'schools'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    region = Column(String)
+
+    created_at = Column(Date)
+    updated_at = Column(Date)
+
+
+class SchoolUser(Base):
+    __tablename__ = 'school_users'
+
+    id = Column(Integer, primary_key=True)
+    school_id = Column(Integer, ForeignKey('schools.id'))
+    user_id = Column(Integer, ForeignKey('users.id'))
+
+    role = Column(Integer)
+    status = Column(Integer)
+    stage = Column(Integer)
 
     created_at = Column(Date)
     updated_at = Column(Date)
