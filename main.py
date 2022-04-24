@@ -17,17 +17,25 @@ if __name__ == '__main__':
     for etl_table in configuration:
         source_db = DB(etl_table["source_db"])
         source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
-                                            etl_table["last_unique_id"],)
+                                            etl_table["last_id"],)
 
         # 3. apply the transformation if needed
-        ...
+        # ...
         # 4. store the results in the anlytical database (based on the target table attribute)
+
+        # create table if not exists
+        analytical_db.create_table(etl_table["source_table_name"])
+
         for row in source_table:
             last_id = row["id"]
             analytical_db.store_results(
                 etl_table["target_table"], etl_table["source_columns"], row)
 
-        # 5. update the last_unique_id in the configuration table
+        # analytical_db.session.commit()
+        print("%s migrate commit, last id %s" %
+              (etl_table["source_table_name"], last_id))
+
+        # # 5. update the last_id in the configuration table
         try:
             if last_id > 1:
                 analytical_db.update_configuration(
