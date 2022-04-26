@@ -51,10 +51,16 @@ def auto_init(exclude: Union[set, list] = None):  # sourcery no-metrics
     return decorator
 
 
-class User(Base):
+class DBModel(Base):
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
+
+class User(DBModel):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     email = Column(String)
     name = Column(String)
     phone = Column(String)
@@ -73,28 +79,28 @@ class User(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
 
-    ### relationship ####
-
-    @auto_init(exclude={})
-    def __init__(self, **_):
-        pass
+    ### relationship ###
 
 
 class Paper(Base):
     __tablename__ = 'papers'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     description = Column(String)
 
     created_at = Column(Date)
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
+    
+
 
 class Question(Base):
     __tablename__ = 'questions'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     score = Column(Integer)
 
     kind = Column(Integer)
@@ -110,7 +116,8 @@ class Question(Base):
 class Tag(Base):
     __tablename__ = 'tags'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     name = Column(String)
     tagging_count = Column(Integer)
 
@@ -118,7 +125,8 @@ class Tag(Base):
 class Tagging(Base):
     __tablename__ = 'taggings'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     tag_id = Column(Integer)
     taggable_type = Column(String)
     taggable_id = Column(Integer)
@@ -139,7 +147,8 @@ class Answer(Base):
 class UsersQuestion(Base):
     __tablename__ = 'users_questions'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     score = Column(Integer)
 
     kind = Column(Integer)
@@ -159,7 +168,8 @@ class UsersQuestion(Base):
 class UsersPaper(Base):
     __tablename__ = 'users_papers'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
 
     score = Column(DECIMAL)
     accumulate_score = Column(DECIMAL)
@@ -189,7 +199,8 @@ class UsersPaper(Base):
 class School(Base):
     __tablename__ = 'schools'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     name = Column(String)
     region = Column(String)
 
@@ -200,7 +211,8 @@ class School(Base):
 class SchoolUser(Base):
     __tablename__ = 'school_users'
 
-    id = Column(Integer, primary_key=True)
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer)
     school_id = Column(Integer, ForeignKey('schools.id'))
     user_id = Column(Integer, ForeignKey('users.id'))
 
