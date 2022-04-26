@@ -51,16 +51,17 @@ def auto_init(exclude: Union[set, list] = None):  # sourcery no-metrics
     return decorator
 
 
-class DBModel(Base):
+class AutoInit:
     @auto_init(exclude={})
     def __init__(self, **_):
         pass
 
-class User(DBModel):
+
+class User(Base, AutoInit):
     __tablename__ = 'users'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     email = Column(String)
     name = Column(String)
     phone = Column(String)
@@ -86,21 +87,19 @@ class Paper(Base):
     __tablename__ = 'papers'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     description = Column(String)
 
     created_at = Column(Date)
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
-    
-
 
 class Question(Base):
     __tablename__ = 'questions'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     score = Column(Integer)
 
     kind = Column(Integer)
@@ -117,7 +116,7 @@ class Tag(Base):
     __tablename__ = 'tags'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     name = Column(String)
     tagging_count = Column(Integer)
 
@@ -126,10 +125,10 @@ class Tagging(Base):
     __tablename__ = 'taggings'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
-    tag_id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
+    tag_id = Column(Integer, index=True, unique=True)
     taggable_type = Column(String)
-    taggable_id = Column(Integer)
+    taggable_id = Column(Integer, index=True, unique=True)
 
     created_at = Column(Date)
 
@@ -137,6 +136,8 @@ class Tagging(Base):
 class Answer(Base):
     __tablename__ = 'answers'
 
+    sync_id = Column(Integer, primary_key=True)
+    id = Column(Integer, index=True, unique=True)
     writing = Column(String)
 
     created_at = Column(Date)
@@ -148,7 +149,7 @@ class UsersQuestion(Base):
     __tablename__ = 'users_questions'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     score = Column(Integer)
 
     kind = Column(Integer)
@@ -169,7 +170,7 @@ class UsersPaper(Base):
     __tablename__ = 'users_papers'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
 
     score = Column(DECIMAL)
     accumulate_score = Column(DECIMAL)
@@ -183,8 +184,8 @@ class UsersPaper(Base):
 
     answered_count = Column(Integer)
 
-    teacher_id = Column(Integer)
-    audit_teacher_id = Column(Integer)
+    teacher_id = Column(Integer, index=True, unique=True)
+    audit_teacher_id = Column(Integer, index=True, unique=True)
 
     # relationship #
     user_id = Column(Integer, ForeignKey('users.id'))
@@ -200,7 +201,7 @@ class School(Base):
     __tablename__ = 'schools'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     name = Column(String)
     region = Column(String)
 
@@ -212,7 +213,7 @@ class SchoolUser(Base):
     __tablename__ = 'school_users'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer)
+    id = Column(Integer, index=True, unique=True)
     school_id = Column(Integer, ForeignKey('schools.id'))
     user_id = Column(Integer, ForeignKey('users.id'))
 
