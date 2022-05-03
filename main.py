@@ -1,4 +1,5 @@
 
+from pdb import set_trace
 import dotenv
 import os
 
@@ -26,12 +27,14 @@ if __name__ == '__main__':
         # create table if not exists
         analytical_db.create_table(etl_table["source_table_name"])
 
+        last_id = 0
         for row in source_table:
             last_id = row["id"]
             analytical_db.store_results(
                 etl_table["target_table"], etl_table["source_columns"], row)
 
-        # analytical_db.session.commit()
+        # set_trace()
+        analytical_db.session.commit()
         print("%s migrate commit, last id %s" %
               (etl_table["source_table_name"], last_id))
 
@@ -42,3 +45,5 @@ if __name__ == '__main__':
                     etl_table["source_db"], etl_table["source_table_name"], last_id)
         except Exception as e:
             print(f"Error updating the configuration table. {e}")
+
+        # break

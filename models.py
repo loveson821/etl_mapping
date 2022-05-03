@@ -1,3 +1,4 @@
+from enum import unique
 from itertools import accumulate
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Date, DECIMAL
@@ -51,13 +52,7 @@ def auto_init(exclude: Union[set, list] = None):  # sourcery no-metrics
     return decorator
 
 
-class AutoInit:
-    @auto_init(exclude={})
-    def __init__(self, **_):
-        pass
-
-
-class User(Base, AutoInit):
+class User(Base):
     __tablename__ = 'users'
 
     sync_id = Column(Integer, primary_key=True)
@@ -82,6 +77,10 @@ class User(Base, AutoInit):
 
     ### relationship ###
 
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
+
 
 class Paper(Base):
     __tablename__ = 'papers'
@@ -93,6 +92,10 @@ class Paper(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
     deleted_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
 
 
 class Question(Base):
@@ -111,6 +114,10 @@ class Question(Base):
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
+
 
 class Tag(Base):
     __tablename__ = 'tags'
@@ -120,17 +127,25 @@ class Tag(Base):
     name = Column(String)
     tagging_count = Column(Integer)
 
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
+
 
 class Tagging(Base):
     __tablename__ = 'taggings'
 
     sync_id = Column(Integer, primary_key=True)
-    id = Column(Integer, index=True, unique=True)
-    tag_id = Column(Integer, index=True, unique=True)
-    taggable_type = Column(String)
-    taggable_id = Column(Integer, index=True, unique=True)
+    id = Column(Integer, index=True)
+    tag_id = Column(Integer, index=True)
+    taggable_type = Column(String, index=True)
+    taggable_id = Column(Integer, index=True)
 
     created_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
 
 
 class Answer(Base):
@@ -143,6 +158,10 @@ class Answer(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
     deleted_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
 
 
 class UsersQuestion(Base):
@@ -158,12 +177,16 @@ class UsersQuestion(Base):
     user_id = Column(Integer, ForeignKey('users.id'))
     question_id = Column(Integer, ForeignKey('questions.id'))
     users_paper_id = Column(Integer, ForeignKey('users_papers.id'))
-    answer_id = Column(Integer, ForeignKey('answers.id'))
-    correction_id = Column(Integer, ForeignKey('answers.id'))
+    answer_id = Column(Integer, ForeignKey('answers.id'), nullable=True)
+    correction_id = Column(Integer, ForeignKey('answers.id'), nullable=True)
 
     created_at = Column(Date)
     updated_at = Column(Date)
     deleted_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
 
 
 class UsersPaper(Base):
@@ -184,8 +207,8 @@ class UsersPaper(Base):
 
     answered_count = Column(Integer)
 
-    teacher_id = Column(Integer, index=True, unique=True)
-    audit_teacher_id = Column(Integer, index=True, unique=True)
+    teacher_id = Column(Integer, index=True)
+    audit_teacher_id = Column(Integer, index=True)
 
     # relationship #
     user_id = Column(Integer, ForeignKey('users.id'))
@@ -195,6 +218,10 @@ class UsersPaper(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
     deleted_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
 
 
 class School(Base):
@@ -207,6 +234,10 @@ class School(Base):
 
     created_at = Column(Date)
     updated_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass
 
 
 class SchoolUser(Base):
@@ -223,3 +254,7 @@ class SchoolUser(Base):
 
     created_at = Column(Date)
     updated_at = Column(Date)
+
+    @auto_init(exclude={})
+    def __init__(self, **_):
+        pass

@@ -2,9 +2,10 @@ import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import sqlalchemy as sa
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, table
 from models import Base, User
 from sqlalchemy.orm import sessionmaker
+from pdb import set_trace
 
 
 class DB:
@@ -16,7 +17,7 @@ class DB:
 
     def read_configuration(self):
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM configuration")
+            cur.execute("SELECT * FROM configuration order by id asc")
             return cur.fetchall()
 
     def read_table(self, table, columns, last_id=None):
@@ -30,11 +31,19 @@ class DB:
 
         param = dict(results)
         instance = model(**param)
+
         self.session.add(instance)
-        # with self.conn.cursor() as cur:
-        #     cur.execute(
-        #         f"INSERT INTO {table} ({','.join(columns)}) VALUES %s", [results])
-        #     self.conn.commit()
+
+        # old_instance = self.session.query(model).filter(
+        #     model.id == instance.id).first()
+
+        # if old_instance is None:
+        #     # print("old instance is None %s" % instance.id)
+        #     self.session.add(instance)
+        # else:
+        #     print("old instance %s" % instance.id)
+        #     instance.sync_id = old_instance.id
+        #     self.session.merge(instance)
 
     def update_configuration(self, source_db, source_table_name, last_id):
         with self.conn.cursor() as cur:
@@ -52,7 +61,15 @@ class DB:
             if hasattr(c, '__tablename__') and c.__tablename__ == tablename:
                 return c
 
+    def _drop_table(self, table_name):
+        with self.conn.cursor() as cur:
+            cur.execute("drop table %s" % table_name)
+            self.conn.commit()
+
     def create_table(self, table_name):
+        # drop table for convenient
+        # self._drop_table(table_name)
+
         # If table don't exist, Create.
 
         if not sa.inspect(self.engine).has_table(table_name):
