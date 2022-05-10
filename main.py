@@ -2,11 +2,13 @@
 from pdb import set_trace
 import dotenv
 import os
-
+from datetime import datetime
 from db import DB
 
 
 if __name__ == '__main__':
+    fetch_time = str(datetime.now()) # current sync time
+
     dotenv.load_dotenv()
     operational_db = DB("OPERATIONAL_DB")
     analytical_db = DB("ANALYTICAL_DB")
@@ -18,7 +20,7 @@ if __name__ == '__main__':
     for etl_table in configuration:
         source_db = DB(etl_table["source_db"])
         source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
-                                            etl_table["last_id"],)
+                                            etl_table["last_id"], fetch_time)
 
         # 3. apply the transformation if needed
         # ...
@@ -28,6 +30,8 @@ if __name__ == '__main__':
         analytical_db.create_table(etl_table["source_table_name"])
 
         last_id = 0
+        
+
         for row in source_table:
             last_id = row["id"]
             analytical_db.store_results(
@@ -35,14 +39,16 @@ if __name__ == '__main__':
 
         # set_trace()
         analytical_db.session.commit()
-        print("%s migrate commit, last id %s" %
-              (etl_table["source_table_name"], last_id))
+        print("%s migrate commit, last id %s, fetch time %s" %
+              (etl_table["source_table_name"], last_id, fetch_time))
 
         # # 5. update the last_id in the configuration table
         try:
-            if last_id > 1:
-                analytical_db.update_configuration(
-                    etl_table["source_db"], etl_table["source_table_name"], last_id)
+            # if last_id > 1:
+            #     analytical_db.update_configuration(
+            #         etl_table["source_db"], etl_table["source_table_name"], last_id)
+            analytical_db.update_configuration(
+                    etl_table["source_db"], etl_table["source_table_name"], last_id, fetch_time)
         except Exception as e:
             print(f"Error updating the configuration table. {e}")
 

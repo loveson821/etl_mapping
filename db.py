@@ -20,10 +20,10 @@ class DB:
             cur.execute("SELECT * FROM configuration order by id asc")
             return cur.fetchall()
 
-    def read_table(self, table, columns, last_id=None):
+    def read_table(self, table, columns, last_id=None, last_fetch=None):
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
+                f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc or updated_at > %s", [last_id, last_fetch])
             return cur.fetchall()
 
     def store_results(self, table, columns, results):
@@ -45,11 +45,19 @@ class DB:
         #     instance.sync_id = old_instance.id
         #     self.session.merge(instance)
 
-    def update_configuration(self, source_db, source_table_name, last_id):
-        with self.conn.cursor() as cur:
-            cur.execute(f"UPDATE configuration SET last_id = %s WHERE source_db = %s and source_table_name = %s",
-                        [last_id, source_db, source_table_name])
-            self.conn.commit()
+    def update_configuration(self, source_db, source_table_name, last_id=0, last_fetch=None):
+
+        if last_id > 0:
+            with self.conn.cursor() as cur:
+                cur.execute(f"UPDATE configuration SET last_id = %s WHERE source_db = %s and source_table_name = %s",
+                            [last_id, source_db, source_table_name])
+                self.conn.commit()
+
+        if last_fetch is not None:
+            with self.conn.cursor() as cur:
+                cur.execute(f"UPDATE configuration SET last_fetch = %s WHERE source_db = %s and source_table_name = %s",
+                            [last_fetch, source_db, source_table_name])
+                self.conn.commit()
 
     def _get_class_by_tablename(self, tablename):
         """Return class reference mapped to table.
