@@ -1,4 +1,5 @@
 
+from curses import set_tabsize
 from pdb import set_trace
 import dotenv
 import os
@@ -22,7 +23,7 @@ if __name__ == '__main__':
 
         try:
             source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
-                                                etl_table["last_id"], fetch_time)
+                                                etl_table["last_id"], etl_table["last_fetch"])
         except:
             continue
 

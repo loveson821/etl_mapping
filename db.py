@@ -24,8 +24,10 @@ class DB:
     def read_table(self, table, columns, last_id=None, last_fetch=None):
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
             try:
+                print(f"SELECT {','.join(columns)} FROM {table} WHERE id > %s or updated_at > %s order by id asc" % (
+                    last_id, str(last_fetch)))
                 cur.execute(
-                    f"SELECT {','.join(columns)} FROM {table} WHERE id > %s or updated_at > %s order by id asc", [last_id, last_fetch])
+                    f"SELECT {','.join(columns)} FROM {table} WHERE id > %s or updated_at > %s order by id asc", [last_id, str(last_fetch)])
             except (sqlalchemy.exc.SQLAlchemyError, sqlalchemy.exc.DBAPIError) as e:
                 cur.execute(
                     f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
