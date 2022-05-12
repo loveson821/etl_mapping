@@ -3,6 +3,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import sqlalchemy as sa
 from sqlalchemy import create_engine, table
+import sqlalchemy
 from models import Base, User
 from sqlalchemy.orm import sessionmaker
 from pdb import set_trace
@@ -25,9 +26,10 @@ class DB:
             try:
                 cur.execute(
                     f"SELECT {','.join(columns)} FROM {table} WHERE id > %s or updated_at > %s order by id asc", [last_id, last_fetch])
-            except:
-                cur.execute(f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
-                    
+            except (sqlalchemy.exc.SQLAlchemyError, sqlalchemy.exc.DBAPIError) as e:
+                cur.execute(
+                    f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
+                pass
 
             return cur.fetchall()
 

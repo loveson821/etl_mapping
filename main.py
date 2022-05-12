@@ -7,7 +7,7 @@ from db import DB
 
 
 if __name__ == '__main__':
-    fetch_time = str(datetime.now()) # current sync time
+    fetch_time = str(datetime.now())  # current sync time
 
     dotenv.load_dotenv()
     operational_db = DB("OPERATIONAL_DB")
@@ -19,8 +19,12 @@ if __name__ == '__main__':
     # 2. for each configuration row, connect to the source DB and read the data table
     for etl_table in configuration:
         source_db = DB(etl_table["source_db"])
-        source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
-                                            etl_table["last_id"], fetch_time)
+
+        try:
+            source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
+                                                etl_table["last_id"], fetch_time)
+        except:
+            continue
 
         # 3. apply the transformation if needed
         # ...
@@ -30,7 +34,6 @@ if __name__ == '__main__':
         analytical_db.create_table(etl_table["source_table_name"])
 
         last_id = 0
-        
 
         for row in source_table:
             last_id = row["id"]
@@ -48,7 +51,7 @@ if __name__ == '__main__':
             #     analytical_db.update_configuration(
             #         etl_table["source_db"], etl_table["source_table_name"], last_id)
             analytical_db.update_configuration(
-                    etl_table["source_db"], etl_table["source_table_name"], last_id, fetch_time)
+                etl_table["source_db"], etl_table["source_table_name"], last_id, fetch_time)
         except Exception as e:
             print(f"Error updating the configuration table. {e}")
 
