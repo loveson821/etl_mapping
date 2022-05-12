@@ -22,8 +22,13 @@ class DB:
 
     def read_table(self, table, columns, last_id=None, last_fetch=None):
         with self.conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc or updated_at > %s", [last_id, last_fetch])
+            try:
+                cur.execute(
+                    f"SELECT {','.join(columns)} FROM {table} WHERE id > %s or updated_at > %s order by id asc", [last_id, last_fetch])
+            except:
+                cur.execute(f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
+                    
+
             return cur.fetchall()
 
     def store_results(self, table, columns, results):

@@ -1,8 +1,7 @@
 from enum import unique
 from itertools import accumulate
-from sqlite3 import Timestamp
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Date, DECIMAL
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String, Date, DECIMAL, TIMESTAMP
 from functools import wraps
 from typing import Union
 Base = declarative_base()
@@ -76,7 +75,7 @@ class User(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     ### relationship ###
 
@@ -96,7 +95,7 @@ class Paper(Base):
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -119,7 +118,7 @@ class Question(Base):
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -134,7 +133,7 @@ class Tag(Base):
     name = Column(String)
     tagging_count = Column(Integer)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -152,7 +151,7 @@ class Tagging(Base):
 
     created_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -170,7 +169,7 @@ class Answer(Base):
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -197,7 +196,7 @@ class UsersQuestion(Base):
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -234,7 +233,7 @@ class UsersPaper(Base):
     updated_at = Column(Date)
     deleted_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -252,7 +251,7 @@ class School(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
@@ -274,7 +273,7 @@ class SchoolUser(Base):
     created_at = Column(Date)
     updated_at = Column(Date)
 
-    last_fetch = Column(Timestamp, index=True)
+    
 
     @auto_init(exclude={})
     def __init__(self, **_):
