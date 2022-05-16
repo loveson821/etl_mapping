@@ -1,6 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-from curses import set_tabsize
-from pdb import set_trace
+#from curses import set_tabsize
+#from pdb import set_trace
+
+import sentry_sdk
 import dotenv
 import os
 from datetime import datetime
@@ -11,9 +15,11 @@ if __name__ == '__main__':
     fetch_time = str(datetime.now())  # current sync time
 
     dotenv.load_dotenv()
+    sentry_sdk.init(os.getenv("SENTRY_URL"), traces_sample_rate=1.0)
+
     operational_db = DB("OPERATIONAL_DB")
     analytical_db = DB("ANALYTICAL_DB")
-
+    
     # 1. connect to the analytical DB and read the configuration table
     configuration = analytical_db.read_configuration()
 
@@ -21,11 +27,8 @@ if __name__ == '__main__':
     for etl_table in configuration:
         source_db = DB(etl_table["source_db"])
 
-        try:
-            source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
+        source_table = source_db.read_table(etl_table["source_table_name"], etl_table["source_columns"],
                                                 etl_table["last_id"], etl_table["last_fetch"])
-        except:
-            continue
 
         # 3. apply the transformation if needed
         # ...
@@ -47,13 +50,5 @@ if __name__ == '__main__':
               (etl_table["source_table_name"], last_id, fetch_time))
 
         # # 5. update the last_id in the configuration table
-        try:
-            # if last_id > 1:
-            #     analytical_db.update_configuration(
-            #         etl_table["source_db"], etl_table["source_table_name"], last_id)
-            analytical_db.update_configuration(
-                etl_table["source_db"], etl_table["source_table_name"], last_id, fetch_time)
-        except Exception as e:
-            print(f"Error updating the configuration table. {e}")
+        analytical_db.update_configuration(etl_table["source_db"], etl_table["source_table_name"], last_id, fetch_time)
 
-        # break

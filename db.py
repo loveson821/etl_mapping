@@ -28,7 +28,8 @@ class DB:
                     last_id, str(last_fetch)))
                 cur.execute(
                     f"SELECT {','.join(columns)} FROM {table} WHERE id > %s or updated_at > %s order by id asc", [last_id, str(last_fetch)])
-            except (sqlalchemy.exc.SQLAlchemyError, sqlalchemy.exc.DBAPIError) as e:
+            except (sqlalchemy.exc.SQLAlchemyError, sqlalchemy.exc.DBAPIError, psycopg2.errors.UndefinedColumn) as e:
+                cur.execute('rollback')
                 cur.execute(
                     f"SELECT {','.join(columns)} FROM {table} WHERE id > %s order by id asc", [last_id])
                 pass
