@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#from curses import set_tabsize
-#from pdb import set_trace
-
 import sentry_sdk
 import dotenv
 import os
