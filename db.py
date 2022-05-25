@@ -13,6 +13,7 @@ class DB:
     def __init__(self, name):
         self.conn = psycopg2.connect(os.getenv(name))
         self.engine = create_engine(os.getenv("SQLALCHEMY_ANALYTICAL_DB"))
+
         Session = sessionmaker(self.engine)
         self.session = Session()
 
