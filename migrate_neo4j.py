@@ -20,6 +20,12 @@ if __name__ == '__main__':
   uri = "bolt://neo4j.m2mda.com"
   driver = GraphDatabase.driver(uri, auth=("neo4j", "m2mneo4j123"))
 
+  def create_person(driver, name):
+    with driver.session() as session:
+      result = session.run("CREATE (a:Person { name: $name }) RETURN id(a) AS node_id", name=name)
+      record = result.single()
+      return record["node_id"]
+
   def get_friends_of(tx, name):
       friends = []
       result = tx.run("MATCH (a:Person)-[:KNOWS]->(f) "
@@ -32,8 +38,9 @@ if __name__ == '__main__':
   with driver.session() as session:
       friends = session.read_transaction(get_friends_of, "Alice")
       for friend in friends:
-          print(friend)
+        print(friend)
 
+  create_person(driver, "Ronald")
   driver.close()
 
 
