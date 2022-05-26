@@ -2,3 +2,6 @@ neo4j
 loguru
 fabric3
 psycopg2
+sqlalchemy
+python-dotenv
+sentry-sdk
