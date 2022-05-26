@@ -78,7 +78,7 @@ def load_schools(tx):
 def load_school_users(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///school_users.csv' AS line \
             MATCH (user:User {id:line.user_id}), (school:School {id:line.school_id}) \
-            MERGE (user)-[:study_at]->(school) \
+            MERGE (user)-[:study_at {role: line.role, stage: line.stage, status: line.status}]->(school) \
            ")
 
 
@@ -97,6 +97,10 @@ def export_csv(table_name):
     pass
 
 
+def rebuild():
+    pass
+
+
 if __name__ == '__main__':
     dotenv.load_dotenv()
 
@@ -108,6 +112,7 @@ if __name__ == '__main__':
     # # 1. load from ana, export to csv
     # #  "papers", "questions", "users_papers", "users_questions",
     tables = ["users", "schools", "school_users"]
+    # tables = ["school_users"]
     # for t in tables:
     #     export_csv(t)
 
