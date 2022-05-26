@@ -8,15 +8,7 @@ from pdb import set_trace
 # def create_user(tx, user):
 # 	tx.run("CREATE (n:User {name: '', title: 'Developer'})")
 
-def add_data(tx):
-    tx.run("LOAD CSV WITH HEADERS FROM 'file:///Users/ronaldng/etl_mapping/users.csv' AS line \
-           MERGE (c:User {id: row.id, name: row.name, email: row.email}) \
-           ")
-
-if __name__ == '__main__':
-  dotenv.load_dotenv()
-
-
+def connection_test():
   uri = "bolt://neo4j.m2mda.com"
   driver = GraphDatabase.driver(uri, auth=("neo4j", "m2mneo4j123"))
 
@@ -44,31 +36,35 @@ if __name__ == '__main__':
   driver.close()
 
 
+def load_csv(tx):
+  tx.run("LOAD CSV WITH HEADERS FROM 'file:///Users/ronaldng/etl_mapping/users.csv' AS line \
+           MERGE (c:User {id: line.id, name: line.name, email: line.email}) \
+           ")
 
+if __name__ == '__main__':
+  dotenv.load_dotenv()
 
-  # # Target: Load data from ana database, export to csv
-  # analytical_db = DB("ANALYTICAL_DB")
+  # Target: Load data from ana database, export to csv
+  analytical_db = DB("ANALYTICAL_DB")
 
-  # # 1. load from ana
-  # query = "select * from users limit 10"
-  # outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(query)
-  # print(outputquery)
-  # with analytical_db.conn.cursor() as cur:
-  #     with open('users.csv', 'w') as f:
-  #         cur.copy_expert(outputquery, f)
+  # 1. load from ana
+  query = "select * from users limit 10"
+  outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(query)
+  print(outputquery)
+  with analytical_db.conn.cursor() as cur:
+      with open('users.csv', 'w') as f:
+          cur.copy_expert(outputquery, f)
 
-  # # 2. transform to fit graph
-  # # 3. merge to graph
-  # uri = 'bolt://neo4j.m2mda.com'
-  # driver = GraphDatabase.driver(uri, auth=("neo4j", "m2mneo4j123"))
-  
-  # set_trace()
+  # 2. transform to fit graph
+  # 3. merge to graph
+  uri = 'bolt://neo4j.m2mda.com'
+  driver = GraphDatabase.driver(uri, auth=("neo4j", "m2mneo4j123"))
 
-  # with driver.session() as session:
-  #   session.write_transaction(add_data)
-	# 	# session.write_transaction(add_friend, "Arthur", "Guinevere")
-	# 	# session.write_transaction(add_friend, "Arthur", "Lancelot")
-	# 	# session.write_transaction(add_friend, "Arthur", "Merlin")
-	# 	# session.read_transaction(print_friends, "Arthur")
+  with driver.session() as session:
+    session.write_transaction(load_csv)
+		# session.write_transaction(add_friend, "Arthur", "Guinevere")
+		# session.write_transaction(add_friend, "Arthur", "Lancelot")
+		# session.write_transaction(add_friend, "Arthur", "Merlin")
+		# session.read_transaction(print_friends, "Arthur")
 
-  # driver.close()
+  driver.close()
