@@ -56,16 +56,23 @@ def load_papers(tx):
 
 def load_users_papers(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///users_papers.csv' AS line \
-          MERGE (c:Paper {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: line.score, accumulate_score: line.accumulate_score}) \
+          MATCH (user:User {id: line.user_id}, (paper:Paper {id: line.paper_id})) \
+          MERGE (user)-[:takes {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: line.score, accumulate_score: line.accumulate_score}]-(paper) \
           ")
 
+def load_questions(tx):
+    tx.run("LOAD CSV WITH HEADERS FROM 'file:///questions.csv' AS line \
+          MATCH (p:Paper {id: line.paper_id}) \
+          MERGE (q:Question {id: line.id, content: line.content, score: score}) \
+          MERGE (q)-[:compose]->(p) \
+          MERGE (p)-[:compose_of]->(q) \
+          ")
 
 def load_users_questions(tx):
-    pass
-
-
-def load_answers(tx):
-    logger.info("ok")
+    tx.run("LOAD CSV WITH HEADERS FROM 'file:///users_questions.csv' AS line \
+        MATCH (user:User {id: line.user_id}, (q:Question {id: line.question_id})) \
+        MERGE (user)-[:answers {id: line.writing, score: line.score}]-(q) \
+        ")
     pass
 
 
@@ -83,18 +90,37 @@ def load_school_users(tx):
 
 
 #
-def export_csv(table_name):
+def export_csv(table_name, standard=True):
+    if standard == False:
+        locals()["export_{0}_csv".format(table_name)]
+    else: 
+        query = """
+            with latest as (select id, max(sync_id) as sync_id from {0} group by id)
+            select * from {0}
+            inner join latest on latest.sync_id = {0}.sync_id
+        """.format(table_name)
+        outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(query)
+        logger.info(outputquery)
+        with analytical_db.conn.cursor() as cur:
+            with open('import/{0}.csv'.format(table_name), 'w') as f:
+                cur.copy_expert(outputquery, f)
+
+def export_users_questions_csv():
+    logger.info("users_questions_csv")
+    table_name = "users_questions"
     query = """
-        with latest as (select id, max(sync_id) as sync_id from {0} group by id)
-        select * from {0}
-        inner join latest on latest.sync_id = {0}.sync_id
+        with latest as (select id, max(sync_id) as sync_id from users_questions group by id), 
+        latest_answers as (select id, max(sync_id) as sync_id from answers group by id)
+        select users_questions.*, answers.writing from users_questions
+        inner join latest on latest.sync_id = users_questions.sync_id
+        inner join answers on users_questions.answer_id = answers.id
+        inner join latest_answers on latest_answers.sync_id = answers.sync_id
     """.format(table_name)
     outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(query)
     logger.info(outputquery)
     with analytical_db.conn.cursor() as cur:
         with open('import/{0}.csv'.format(table_name), 'w') as f:
             cur.copy_expert(outputquery, f)
-    pass
 
 
 def rebuild():
@@ -111,10 +137,16 @@ if __name__ == '__main__':
 
     # # 1. load from ana, export to csv
     # #  "papers", "questions", "users_papers", "users_questions",
-    tables = ["users", "schools", "school_users"]
-    # tables = ["school_users"]
-    # for t in tables:
-    #     export_csv(t)
+    tables = [
+        # ["users", True], 
+        # ["schools", True], 
+        # ["school_users", True],
+        ["papers", True], 
+        ["questions", True],
+        ["users_questions", False],        
+    ]
+    for t, standard in tables:
+        export_csv(t, standard)
 
     # # 2. transform to fit graph
     # 3. load from csv, merge to graph
