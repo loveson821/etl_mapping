@@ -5,7 +5,9 @@ import dotenv
 from neo4j import GraphDatabase
 from pdb import set_trace
 from loguru import logger
+# import logging
 
+# neo4j_log = logging.getLogger("neo4j.bolt")
 # def create_user(tx, user):
 # 	tx.run("CREATE (n:User {name: '', title: 'Developer'})")
 
@@ -50,7 +52,9 @@ def load_users(tx):
 
 def load_papers(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///papers.csv' AS line \
-          MERGE (c:Paper {id: line.id, name: line.description}) \
+          WITH line \
+          WHERE NOT line.description is null \
+          MERGE (p:Paper {id: line.id, name: coalesce(line.description, '')}) \
           ")
 
 
@@ -60,18 +64,22 @@ def load_users_papers(tx):
           MERGE (user)-[:takes {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: line.score, accumulate_score: line.accumulate_score}]-(paper) \
           ")
 
+
 def load_questions(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///questions.csv' AS line \
           MATCH (p:Paper {id: line.paper_id}) \
-          MERGE (q:Question {id: line.id, content: line.content, score: score}) \
+          WITH line \
+          WHERE NOT line.score is null \
+          MERGE (q:Question {id: line.id, content: coalesce(line.content, ''), score: line.score}) \
           MERGE (q)-[:compose]->(p) \
           MERGE (p)-[:compose_of]->(q) \
           ")
 
+
 def load_users_questions(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///users_questions.csv' AS line \
-        MATCH (user:User {id: line.user_id}, (q:Question {id: line.question_id})) \
-        MERGE (user)-[:answers {id: line.writing, score: line.score}]-(q) \
+        MATCH (user:User {id: line.user_id}), (q:Question {id: line.question_id}) \
+        MERGE (user)-[:answers {id: line.id, writing: coalesce(line.writing, ''), score: coalesce(line.score, 0)}]->(q) \
         ")
     pass
 
@@ -89,11 +97,65 @@ def load_school_users(tx):
            ")
 
 
-#
-def export_csv(table_name, standard=True):
-    if standard == False:
-        locals()["export_{0}_csv".format(table_name)]
-    else: 
+def load_tags(tx):
+    tx.run("LOAD CSV WITH HEADERS FROM 'file:///tags.csv' AS line \
+          MERGE (c:Tag {id: line.id, name: line.name}) \
+          ")
+
+
+def load_taggings(tx):
+    tx.run("LOAD CSV WITH HEADERS FROM 'file:///taggings.csv' AS line \
+            WITH line.taggable_type AS label, line.tag_id as tagId, line.taggable_id as taggable_id \
+            CALL apoc.cypher.run( 'MATCH (n:' + label + ' {id: \"'+ taggable_id + '\"}), (t:Tag {id: \"' + tagId + '\"}) return n,t' , {}) \
+            YIELD value as data \
+            unwind data.n as n \
+            unwind data.t as t \
+            MERGE (n)-[:has_tag]->(t) \
+        ")
+    pass
+
+
+def export_taggings_csv():
+    logger.info("exporting taggings csv")
+    table_name = "taggings"
+    query = """
+        with latest as (select id, max(sync_id) as sync_id from taggings group by id), 
+        latest_tags as (select id, max(sync_id) as sync_id from tags group by id)
+        select taggings.*, tags.name from taggings
+        inner join latest on latest.sync_id = taggings.sync_id
+        inner join tags on tags.id = taggings.tag_id
+        inner join latest_tags on latest_tags.sync_id = tags.sync_id
+    """.format(table_name)
+    write_csv_file(table_name, query)
+
+
+def export_users_questions_csv():
+    logger.info("exporting users_questions csv")
+    table_name = "users_questions"
+    query = """
+        with latest as (select id, max(sync_id) as sync_id from users_questions group by id), 
+        latest_answers as (select id, max(sync_id) as sync_id from answers group by id)
+        select users_questions.*, answers.writing from users_questions
+        inner join latest on latest.sync_id = users_questions.sync_id
+        inner join answers on users_questions.answer_id = answers.id
+        inner join latest_answers on latest_answers.sync_id = answers.sync_id
+    """.format(table_name)
+    write_csv_file(table_name, query)
+
+
+def write_csv_file(name, sql):
+    logger.info(sql)
+    outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(sql)
+    with analytical_db.conn.cursor() as cur:
+        with open('import/{0}.csv'.format(name), 'w') as f:
+            cur.copy_expert(outputquery, f)
+
+
+def export_csv(t):
+    table_name = t['table_name']
+    if t['standard_query_sql'] == False:
+        return globals()["export_{0}_csv".format(table_name)]()
+    else:
         query = """
             with latest as (select id, max(sync_id) as sync_id from {0} group by id)
             select * from {0}
@@ -105,22 +167,14 @@ def export_csv(table_name, standard=True):
             with open('import/{0}.csv'.format(table_name), 'w') as f:
                 cur.copy_expert(outputquery, f)
 
-def export_users_questions_csv():
-    logger.info("users_questions_csv")
-    table_name = "users_questions"
-    query = """
-        with latest as (select id, max(sync_id) as sync_id from users_questions group by id), 
-        latest_answers as (select id, max(sync_id) as sync_id from answers group by id)
-        select users_questions.*, answers.writing from users_questions
-        inner join latest on latest.sync_id = users_questions.sync_id
-        inner join answers on users_questions.answer_id = answers.id
-        inner join latest_answers on latest_answers.sync_id = answers.sync_id
-    """.format(table_name)
-    outputquery = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(query)
-    logger.info(outputquery)
-    with analytical_db.conn.cursor() as cur:
-        with open('import/{0}.csv'.format(table_name), 'w') as f:
-            cur.copy_expert(outputquery, f)
+
+def create_indexes(tx, t):
+    if t['edge'] == False:
+        logger.info("create_indexes {0}".format(t))
+        tx.run(
+            "CREATE INDEX {0}_{1}_index IF NOT EXISTS FOR (t:{0}) ON (t.{1})".
+            format(t['table_name'], t['id']))
+    pass
 
 
 def rebuild():
@@ -137,16 +191,46 @@ if __name__ == '__main__':
 
     # # 1. load from ana, export to csv
     # #  "papers", "questions", "users_papers", "users_questions",
-    tables = [
-        # ["users", True], 
-        # ["schools", True], 
-        # ["school_users", True],
-        ["papers", True], 
-        ["questions", True],
-        ["users_questions", False],        
-    ]
-    for t, standard in tables:
-        export_csv(t, standard)
+    tables = [{
+        "table_name": "users",
+        "node_label": "User",
+        "edge": False,
+        "standard_query_sql": True
+    }, {
+        "table_name": "schools",
+        "node_label": "School",
+        "edge": False,
+        "standard_query_sql": True
+    }, {
+        "table_name": "school_users",
+        "node_label": "SchoolUser",
+        "edge": False,
+        "standard_query_sql": True
+    }, {
+        "table_name": "papers",
+        "node_label": "Paper",
+        "edge": False,
+        "standard_query_sql": True
+    }, {
+        "table_name": "questions",
+        "node_label": "Question",
+        "edge": False,
+        "standard_query_sql": True
+    }, {
+        "table_name": "users_questions",
+        "node_label": "answers",
+        "edge": True,
+        "standard_query_sql": False
+    }, {
+        "table_name": "taggings",
+        "node_label": "has_tags",
+        "edge": True,
+        "standard_query_sql": False
+    }]
+
+    # tables = tables[-1:]
+    for t in tables:
+        export_csv(t)
 
     # # 2. transform to fit graph
     # 3. load from csv, merge to graph
@@ -155,7 +239,13 @@ if __name__ == '__main__':
 
     with driver.session() as session:
         for t in tables:
-            logger.info("loading in {0}".format(t))
-            session.write_transaction(locals()["load_{0}".format(t)])
+            logger.info("loading in {0}".format(t['table_name']))
+            session.write_transaction(locals()["load_{0}".format(
+                t['table_name'])])
+
+    with driver.session() as session:
+        for t in tables:
+            logger.info("create index on {0}".format(t['table_name']))
+            session.write_transaction(create_indexes, t)
 
     driver.close()
