@@ -181,6 +181,45 @@ def rebuild():
     pass
 
 
+def load_tiku_csv_indexes(tx):
+    tx.run("CREATE INDEX IF NOT EXISTS FOR (c:TextBook) ON (c.name)")
+    tx.run("CREATE INDEX IF NOT EXISTS FOR (c:Chapter) ON (c.name)")
+    tx.run("CREATE INDEX IF NOT EXISTS FOR (c:SubChapter) ON (c.name)")
+    tx.run("CREATE INDEX IF NOT EXISTS FOR (c:TextBook) ON (c.name)")
+    tx.run("CREATE INDEX IF NOT EXISTS FOR (c:Concept) ON (c.name)")
+    tx.run(
+        "CREATE INDEX IF NOT EXISTS FOR (c:TQuestion) ON (c.id, c.question_type)"
+    )
+
+
+def load_tiku_csv(tx):
+    tx.run("LOAD CSV WITH HEADERS FROM 'file:///tiku.csv' AS line \
+          unwind line.textbook_version +  '-' + line.textbook as textbook_name \
+          unwind line.textbook_version +  '-' + line.textbook + '-' + line.chapter as chapter_name \
+          unwind line.textbook_version +  '-' + line.textbook + '-' + line.chapter + '-' + line.subchapter as subchapter_name \
+          MERGE (b:TextBook {name: textbook_name}) \
+          MERGE (c:Chapter {name: chapter_name})  \
+          MERGE (s:SubChapter {name: subchapter_name}) \
+          MERGE (k: Concept {name: line.knowledge_point}) \
+          MERGE (q: TQuestion {id: line.id, content: line.problem, question_type: line.question_type, difficulty: line.difficulty}) \
+          MERGE (b)-[:chapters]->(c) \
+          MERGE (c)-[:subchapters]->(s) \
+          MERGE (s)-[:concepts]->(k) \
+          MERGE (k)-[:questions]->(q) \
+        ")
+
+
+def randon_assign_question_to_concept(tx):
+    tx.run(" \
+        WITH range(1,1) as conceptRange \
+        MATCH (h:Concept) \
+        WITH collect(h) as concepts, conceptRange \
+        MATCH (p:Question) \
+        WITH p, apoc.coll.randomItems(concepts, apoc.coll.randomItem(conceptRange)) as concepts \
+        FOREACH (concept in concepts | CREATE (p)-[:has_concept]->(concept)) \
+    ")
+
+
 if __name__ == '__main__':
     dotenv.load_dotenv()
 
@@ -188,9 +227,10 @@ if __name__ == '__main__':
 
     # Target: Load data from ana database, export to csv
     analytical_db = DB("ANALYTICAL_DB")
+    uri = os.getenv("NEO4J_BOLT_CONNECTION")
+    driver = GraphDatabase.driver(uri, auth=("neo4j", os.getenv("NEO4J_PASS")))
 
     # # 1. load from ana, export to csv
-    # #  "papers", "questions", "users_papers", "users_questions",
     tables = [{
         "table_name": "users",
         "node_label": "User",
@@ -229,23 +269,27 @@ if __name__ == '__main__':
     }]
 
     # tables = tables[-1:]
-    for t in tables:
-        export_csv(t)
+    # for t in tables:
+    #     export_csv(t)
 
-    # # 2. transform to fit graph
-    # 3. load from csv, merge to graph
-    uri = 'bolt://neo4j.m2mda.com'
-    driver = GraphDatabase.driver(uri, auth=("neo4j", os.getenv("NEO4J_PASS")))
+    # # 2. load from csv, merge to graph
+    # with driver.session() as session:
+    #     for t in tables:
+    #         logger.info("loading in {0}".format(t['table_name']))
+    #         session.write_transaction(locals()["load_{0}".format(
+    #             t['table_name'])])
+    #         logger.info("create index on {0}".format(t['table_name']))
+    #         session.write_transaction(create_indexes, t)
 
+    # # 3 Tiki Data
+    # with driver.session() as session:
+    #     session.write_transaction(load_tiku_csv_indexes)
+
+    # with driver.session() as session:
+    #     session.write_transaction(load_tiku_csv)
+
+    # 4 Testing data use only
     with driver.session() as session:
-        for t in tables:
-            logger.info("loading in {0}".format(t['table_name']))
-            session.write_transaction(locals()["load_{0}".format(
-                t['table_name'])])
-
-    with driver.session() as session:
-        for t in tables:
-            logger.info("create index on {0}".format(t['table_name']))
-            session.write_transaction(create_indexes, t)
+        session.write_transaction(randon_assign_question_to_concept)
 
     driver.close()
