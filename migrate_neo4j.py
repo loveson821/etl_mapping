@@ -60,19 +60,18 @@ def load_papers(tx):
 
 def load_users_papers(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///users_papers.csv' AS line \
-          MATCH (user:User {id: line.user_id}, (paper:Paper {id: line.paper_id})) \
-          MERGE (user)-[:takes {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: line.score, accumulate_score: line.accumulate_score}]-(paper) \
+          MATCH (user:User {id: line.user_id}), (paper:Paper {id: line.paper_id}) \
+          MERGE (user)-[:takes {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: coalesce(line.score, 'unknown'), accumulate_score: coalesce(line.accumulate_score, 'unknown') }]-(paper) \
           ")
 
 
 def load_questions(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///questions.csv' AS line \
-          MATCH (p:Paper {id: line.paper_id}) \
-          WITH line \
-          WHERE NOT line.score is null \
-          MERGE (q:Question {id: line.id, content: coalesce(line.content, ''), score: line.score}) \
+          unwind '' + line.paper_id as paper_id \
+          MATCH (p:Paper {id: paper_id}) \
+          WHERE NOT line.score is null AND NOT line.paper_id is null \
+          MERGE (q:Question {id: line.id, paper_id: line.paper_id, content: coalesce(line.content, ''), score: line.score}) \
           MERGE (q)-[:compose]->(p) \
-          MERGE (p)-[:compose_of]->(q) \
           ")
 
 
@@ -129,6 +128,17 @@ def export_taggings_csv():
     write_csv_file(table_name, query)
 
 
+def export_users_papers_csv():
+    logger.info("exporting users_papers csv")
+    table_name = "users_papers"
+    query = """
+        with latest as (select id, max(sync_id) as sync_id from users_papers group by id)
+        select up.id, up.score, up.accumulate_score, up.status, up.teacher_id, up.answered_count, up.user_id, up.paper_id, up.deleted_at, up.updated_at, up.meta->'progress' as progress from users_papers as up
+        inner join latest on latest.sync_id = up.sync_id
+    """.format(table_name)
+    write_csv_file(table_name, query)
+
+
 def export_users_questions_csv():
     logger.info("exporting users_questions csv")
     table_name = "users_questions"
@@ -173,11 +183,12 @@ def create_indexes(tx, t):
         logger.info("create_indexes {0}".format(t))
         tx.run(
             "CREATE INDEX {0}_{1}_index IF NOT EXISTS FOR (t:{0}) ON (t.{1})".
-            format(t['table_name'], t['id']))
+            format(t['table_name'], 'id'))
     pass
 
 
-def rebuild():
+def rebuild(tx):
+    tx.run("MATCH (n) DETACH DELETE n")
     pass
 
 
@@ -223,8 +234,6 @@ def randon_assign_question_to_concept(tx):
 if __name__ == '__main__':
     dotenv.load_dotenv()
 
-    # locals()["load_answers"](None)
-
     # Target: Load data from ana database, export to csv
     analytical_db = DB("ANALYTICAL_DB")
     uri = os.getenv("NEO4J_BOLT_CONNECTION")
@@ -257,6 +266,11 @@ if __name__ == '__main__':
         "edge": False,
         "standard_query_sql": True
     }, {
+        "table_name": "users_papers",
+        "node_label": "takes",
+        "edge": True,
+        "standard_query_sql": False
+    }, {
         "table_name": "users_questions",
         "node_label": "answers",
         "edge": True,
@@ -268,28 +282,40 @@ if __name__ == '__main__':
         "standard_query_sql": False
     }]
 
-    # tables = tables[-1:]
-    # for t in tables:
-    #     export_csv(t)
+    for t in tables:
+        export_csv(t)
 
-    # # 2. load from csv, merge to graph
-    # with driver.session() as session:
-    #     for t in tables:
-    #         logger.info("loading in {0}".format(t['table_name']))
-    #         session.write_transaction(locals()["load_{0}".format(
-    #             t['table_name'])])
-    #         logger.info("create index on {0}".format(t['table_name']))
-    #         session.write_transaction(create_indexes, t)
+    # t = {
+    #     "table_name": "users_papers",
+    #     "node_label": "takes",
+    #     "edge": True,
+    #     "standard_query_sql": False
+    # }
+    # export_csv(t)
 
-    # # 3 Tiki Data
-    # with driver.session() as session:
-    #     session.write_transaction(load_tiku_csv_indexes)
+    # 2. load from csv, merge to graph
+    with driver.session() as session:
+        for t in tables:
+            logger.info("loading in {0}".format(t['table_name']))
+            session.write_transaction(locals()["load_{0}".format(
+                t['table_name'])])
+            logger.info("create index on {0}".format(t['table_name']))
+            session.write_transaction(create_indexes, t)
 
-    # with driver.session() as session:
-    #     session.write_transaction(load_tiku_csv)
+    # 3 Tiki Data
+    with driver.session() as session:
+        session.write_transaction(load_tiku_csv_indexes)
+
+    with driver.session() as session:
+        session.write_transaction(load_tiku_csv)
 
     # 4 Testing data use only
     with driver.session() as session:
         session.write_transaction(randon_assign_question_to_concept)
+
+    # with driver.session() as session:
+    #     session.write_transaction(load_users_papers)
+    # Get graph structure
+    # CALL apoc.meta.graph()
 
     driver.close()
