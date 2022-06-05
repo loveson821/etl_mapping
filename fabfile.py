@@ -27,3 +27,12 @@ def deploy():
         run("git pull origin main")
         run("pip3 install -r requirements.txt")
         run("python migrate_neo4j.py")
+
+
+def rebuild():
+    with cd(code_dir):
+        run("sudo chmod 777 {0}/import -R".format(code_dir))
+        run("git checkout .")
+        run("git pull origin main")
+        run("pip3 install -r requirements.txt")
+        run("python migrate_neo4j.py --task=rebuild")

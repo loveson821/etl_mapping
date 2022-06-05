@@ -61,7 +61,7 @@ def load_papers(tx):
 def load_users_papers(tx):
     tx.run("LOAD CSV WITH HEADERS FROM 'file:///users_papers.csv' AS line \
           MATCH (user:User {id: line.user_id}), (paper:Paper {id: line.paper_id}) \
-          MERGE (user)-[:takes {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: coalesce(line.score, 'unknown'), accumulate_score: coalesce(line.accumulate_score, 'unknown') }]-(paper) \
+          MERGE (user)-[:takes {id: line.id, paper_id: line.paper_id, user_id: line.user_id, score: coalesce(line.score, 'unknown'), accumulate_score: coalesce(line.accumulate_score, 'unknown'), submited_at: coalesce(line.submited_at, 'unknown'), corrected_at: coalesce(line.corrected_at, 'unknown'), teacher_id: coalesce(line.teacher_id, 'unknown') }]-(paper) \
           ")
 
 
@@ -199,7 +199,7 @@ def load_tiku_csv_indexes(tx):
     tx.run("CREATE INDEX IF NOT EXISTS FOR (c:TextBook) ON (c.name)")
     tx.run("CREATE INDEX IF NOT EXISTS FOR (c:Concept) ON (c.name)")
     tx.run(
-        "CREATE INDEX IF NOT EXISTS FOR (c:TQuestion) ON (c.id, c.question_type)"
+        "CREATE INDEX IF NOT EXISTS FOR (c:Question) ON (c.id, c.question_type)"
     )
 
 
@@ -212,7 +212,7 @@ def load_tiku_csv(tx):
           MERGE (c:Chapter {name: chapter_name})  \
           MERGE (s:SubChapter {name: subchapter_name}) \
           MERGE (k: Concept {name: line.knowledge_point}) \
-          MERGE (q: TQuestion {id: line.id, content: line.problem, question_type: line.question_type, difficulty: line.difficulty}) \
+          MERGE (q: Question {id: line.id, content: line.problem, question_type: line.question_type, difficulty: line.difficulty}) \
           MERGE (b)-[:chapters]->(c) \
           MERGE (c)-[:subchapters]->(s) \
           MERGE (s)-[:concepts]->(k) \
@@ -239,7 +239,16 @@ if __name__ == '__main__':
     uri = os.getenv("NEO4J_BOLT_CONNECTION")
     driver = GraphDatabase.driver(uri, auth=("neo4j", os.getenv("NEO4J_PASS")))
 
-    # # 1. load from ana, export to csv
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--task", required=True)
+    args = parser.parse_args()
+
+    if args.task == "rebuild":
+        with driver.session() as session:
+            session.write_transaction(rebuild)
+
+    # 1. load from ana, export to csv
     tables = [{
         "table_name": "users",
         "node_label": "User",
